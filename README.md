@@ -1,92 +1,176 @@
-# BigDataSnowflake — Лабораторная работа №1
+# Лабораторная работа №1  
+## BigDataSnowflake — нормализация исходных данных в аналитическую модель snowflake
 
-Готовая структура проекта для загрузки 10 CSV-файлов в PostgreSQL и трансформации исходной таблицы `staging.mock_data` в аналитическую модель `snowflake` (`dwh.fact_sales` + измерения).
+## Описание работы
 
-## Структура
+В рамках лабораторной работы выполнена трансформация исходных денормализованных данных из CSV-файлов в аналитическую модель данных типа **snowflake** в СУБД PostgreSQL.
 
-- `docker-compose.yml` — PostgreSQL в Docker
-- `data/` — исходные CSV
-- `init/00_init.sql` — создание схемы и staging-таблицы
-- `init/01_load_raw.sh` — загрузка всех CSV в `staging.mock_data`
-- `init/02_ddl.sql` — DDL для измерений и фактов
-- `init/03_dml.sql` — DML для заполнения snowflake-модели
-- `sql/checks.sql` — проверки и пример аналитического запроса
+Исходные данные содержат информацию о:
+- покупателях;
+- питомцах покупателей;
+- продавцах;
+- магазинах;
+- поставщиках;
+- товарах для домашних животных;
+- продажах.
 
-## Как установить Docker на Ubuntu
+Работа выполнена в соответствии с алгоритмом задания:
+1. подготовлен репозиторий с исходными CSV-файлами;
+2. настроен запуск PostgreSQL через Docker;
+3. все исходные файлы загружены в таблицу `staging.mock_data`;
+4. выполнен анализ структуры данных;
+5. выделены сущности фактов и измерений;
+6. реализованы DDL-скрипты создания аналитической модели;
+7. реализованы DML-скрипты заполнения таблиц;
+8. выполнена проверка корректности загрузки и аналитических запросов.
 
-Официальная документация Docker рекомендует ставить Docker Engine через apt-репозиторий. Поддерживаются 64-bit Ubuntu 22.04, 24.04 и 25.10, а после установки можно проверить работу командой `sudo docker run hello-world`. Также пост-установка для запуска без `sudo` — добавить пользователя в группу `docker`. citeturn786005search0turn786005search6turn350985search0
+---
 
-### Команды установки
+## Состав репозитория
 
-```bash
-sudo apt update
-sudo apt install ca-certificates curl
-sudo install -m 0755 -d /etc/apt/keyrings
-sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-sudo chmod a+r /etc/apt/keyrings/docker.asc
-
-echo \
-  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
-  $(. /etc/os-release && echo \"${UBUNTU_CODENAME:-$VERSION_CODENAME}\") stable" | \
-  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-sudo apt update
-sudo apt install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-sudo docker run hello-world
+```text
+.
+├── docker-compose.yml
+├── data/
+│   ├── MOCK_DATA.csv
+│   ├── MOCK_DATA (1).csv
+│   ├── MOCK_DATA (2).csv
+│   ├── MOCK_DATA (3).csv
+│   ├── MOCK_DATA (4).csv
+│   ├── MOCK_DATA (5).csv
+│   ├── MOCK_DATA (6).csv
+│   ├── MOCK_DATA (7).csv
+│   ├── MOCK_DATA (8).csv
+│   └── MOCK_DATA (9).csv
+├── init/
+│   ├── 00_init.sql
+│   ├── 01_load_raw.sh
+│   ├── 02_ddl.sql
+│   └── 03_dml.sql
+└── sql/
+    └── checks.sql
 ```
 
-### Чтобы запускать без `sudo`
+Таблица фактов содержит:
+- дату продажи;
+- покупателя;
+- питомца покупателя;
+- продавца;
+- магазин;
+- товар;
+- количество проданных единиц;
+- итоговую стоимость продажи.
 
+### Таблицы измерений
+В проекте реализованы следующие измерения:
+- `dwh.dim_date`
+- `dwh.dim_customer`
+- `dwh.dim_customer_pet`
+- `dwh.dim_seller`
+- `dwh.dim_store`
+- `dwh.dim_product`
+- `dwh.dim_supplier`
+
+Дополнительно используются нормализованные справочники, что соответствует модели **snowflake**.
+
+---
+
+## Команды для запуска и проверки проекта
+
+### Клонирование репозитория
 ```bash
-sudo groupadd docker
-sudo usermod -aG docker $USER
-newgrp docker
-```
-
-## Как запустить лабораторную
-
-Открой терминал в папке проекта и выполни:
-
-```bash
+git clone https://github.com/ElizabetDA/BDSnowflake
+cd BDSnowflake
 docker compose up -d
-```
-
-Важно: официальный образ `postgres` запускает все `*.sql` и `*.sh` из `/docker-entrypoint-initdb.d` **только при первом старте на пустом volume**. Поэтому если хочешь перезалить данные с нуля, сначала делай: citeturn350985search0turn350985search7
-
-```bash
-docker compose down -v
-docker compose up -d
-```
-
-## Как проверить, что всё загрузилось
-
-```bash
+docker ps
 docker exec -it bigdata_snowflake_pg psql -U postgres -d bigdata_lab
+\pset pager off
 ```
 
-Внутри `psql`:
+### Проверка загрузки исходных данных
+```sql
+SELECT COUNT(*) FROM staging.mock_data;
+```
 
+Ожидаемый результат:
+```text
+10000
+```
+
+### Проверка таблицы фактов
+```sql
+SELECT COUNT(*) FROM dwh.fact_sales;
+```
+
+Ожидаемый результат:
+```text
+10000
+```
+
+### Проверка таблицы дат
+```sql
+SELECT COUNT(*) FROM dwh.dim_date;
+```
+
+### Проверочный аналитический запрос по месяцам и товарам
+```sql
+SELECT 
+    d.year_num,
+    d.month_num,
+    p.product_name,
+    SUM(f.sale_quantity) AS total_qty,
+    ROUND(SUM(f.sale_total_price), 2) AS total_revenue
+FROM dwh.fact_sales f
+JOIN dwh.dim_date d ON f.sale_date_key = d.date_key
+JOIN dwh.dim_product p ON f.product_key = p.product_key
+GROUP BY d.year_num, d.month_num, p.product_name
+ORDER BY d.year_num, d.month_num, total_revenue DESC;
+```
+
+### Выход из psql
+```sql
+\q
+```
+
+---
+
+## Как подключиться через DBeaver
+
+Параметры подключения:
+- **Host:** `localhost`
+- **Port:** `5432`
+- **Database:** `bigdata_lab`
+- **User:** `postgres`
+- **Password:** `postgres`
+
+---
+
+## Порядок автоматической инициализации
+
+При первом запуске контейнера выполняются следующие шаги:
+1. создаётся staging-слой;
+2. исходные CSV-файлы загружаются в таблицу `staging.mock_data`;
+3. создаются таблицы snowflake-модели;
+4. таблицы измерений и таблица фактов заполняются данными из staging-слоя.
+
+---
+
+## Проверка результата
+
+Минимальный набор проверок:
 ```sql
 SELECT COUNT(*) FROM staging.mock_data;
 SELECT COUNT(*) FROM dwh.fact_sales;
-\i /workspace/sql/checks.sql
+SELECT COUNT(*) FROM dwh.dim_date;
 ```
 
-## Что важно для защиты
+---
 
-1. Исходная модель — одна широкая денормализованная таблица `staging.mock_data`.
-2. Поля `sale_customer_id`, `sale_seller_id`, `sale_product_id` нельзя считать глобальными ключами, потому что они повторяются между файлами.
-3. Поэтому в аналитической модели используются surrogate keys (`BIGSERIAL`) и загрузка по бизнес-полям.
-4. Факт: `dwh.fact_sales`.
-5. Измерения: покупатель, питомец покупателя, продавец, магазин, поставщик, товар, дата и вспомогательные нормализованные справочники (страна, город, категория, бренд, материал, цвет, размер, тип питомца и т.д.).
-6. Это уже именно snowflake, а не просто звезда, потому что часть измерений вынесена в отдельные подизмерения.
+## Результат работы
 
-## Если Docker совсем не хочется
-
-Можно сделать то же самое через локальный PostgreSQL + DBeaver:
-1. установить PostgreSQL,
-2. создать БД `bigdata_lab`,
-3. выполнить `00_init.sql`, `02_ddl.sql`, `03_dml.sql`,
-4. а CSV загрузить в `staging.mock_data` через Import Data в DBeaver.
-
-Но для сдачи у тебя по ТЗ лучше иметь именно `docker-compose.yml`.
+В результате выполнения лабораторной работы:
+- исходные денормализованные данные были загружены в PostgreSQL;
+- построена аналитическая модель типа **snowflake**;
+- созданы таблица фактов и таблицы измерений;
+- реализованы DDL- и DML-скрипты;
+- обеспечен воспроизводимый запуск проекта и проверка результата через Docker.
