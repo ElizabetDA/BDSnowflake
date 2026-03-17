@@ -1,30 +1,92 @@
-# BigDataSnowflake
-Анализ больших данных - лабораторная работа №1 - нормализация данных в снежинку
+# BigDataSnowflake — Лабораторная работа №1
 
-Одна из задач data engineer при работе с данными BigData трансформировать исходную модель данных источника в аналитическую модель данных. Аналитическая модель данных позволяет исследовать данные и принимать на основе полученных данных решения. Классическими универсальными схемами для анализа данных являются "звезда" и "снежинка". В лабораторной работе вам предстоит потренироваться в трансформации исходных данных из источников в модель данных снежинка.
+Готовая структура проекта для загрузки 10 CSV-файлов в PostgreSQL и трансформации исходной таблицы `staging.mock_data` в аналитическую модель `snowflake` (`dwh.fact_sales` + измерения).
 
-Что необходимо сделать?
+## Структура
 
-Необходимо данные источника (файлы mock_data.csv с номерами), которые представляют информацию о покупателях, продавцах, поставщиках, магазинах, товарах для домашних питомцев трансформировать в модель снежинка/звезда (факты и измерения с нормализацией).
+- `docker-compose.yml` — PostgreSQL в Docker
+- `data/` — исходные CSV
+- `init/00_init.sql` — создание схемы и staging-таблицы
+- `init/01_load_raw.sh` — загрузка всех CSV в `staging.mock_data`
+- `init/02_ddl.sql` — DDL для измерений и фактов
+- `init/03_dml.sql` — DML для заполнения snowflake-модели
+- `sql/checks.sql` — проверки и пример аналитического запроса
 
-![Лабораторная работа №1](https://github.com/user-attachments/assets/5bdd26dc-b9e5-4ddc-8df4-456d25503af4)
+## Как установить Docker на Ubuntu
 
-Алгоритм:
-1. Клонируете к себе этот репозиторий.
-2. Устанавливаете себе инструмент для работы с запросами SQL (рекомендую DBeaver).
-3. Запускаете базу данных PostgreSQL (рекомендую установку через docker).
-4. Скачиваете файлы с исходными данными mock_data( * ).csv, где ( * ) номера файлов. Всего 10 файлов, каждый по 1000 строк.
-5. Импортируете данные в БД PostgreSQL (например, через механизм импорта csv в DBeaver). Всего в таблице mock_data должно находиться 10000 строк из 10 файлов.
-6. Анализируете исходные данные с помощью запросов.
-7. Выявляете сущности фактов и измерений.
-8. Реализуете скрипты DDL для создания таблиц фактов и измерений.
-9. Реализуете скрипты DML для заполнения таблиц фактов и измерений из исходных данных.
-10. Проверяете полученный результат.
-11. Отправляете результат на проверку лаборантам.
-12. Обсуждаете работу с лаборантами.
+Официальная документация Docker рекомендует ставить Docker Engine через apt-репозиторий. Поддерживаются 64-bit Ubuntu 22.04, 24.04 и 25.10, а после установки можно проверить работу командой `sudo docker run hello-world`. Также пост-установка для запуска без `sudo` — добавить пользователя в группу `docker`. citeturn786005search0turn786005search6turn350985search0
 
-Что должно быть результатом работы?
-1. Репозиторий, в котором есть исходные данные mock_data( * ).csv, где ( * ) номера файлов. Всего 10 файлов, каждый по 1000 строк.
-2. Файл docker-compose.yml с установкой PostgreSQL и заполненными данными из файлов mock_data(*).csv.
-3. Скрипты DDL (SQL) создания таблиц фактов и измерений в соответствии с моделью снежинка/звезда.
-4. Скрипты DML (SQL) заполнения таблиц фактов и измерений из исходных данных.
+### Команды установки
+
+```bash
+sudo apt update
+sudo apt install ca-certificates curl
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+  $(. /etc/os-release && echo \"${UBUNTU_CODENAME:-$VERSION_CODENAME}\") stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+sudo apt update
+sudo apt install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+sudo docker run hello-world
+```
+
+### Чтобы запускать без `sudo`
+
+```bash
+sudo groupadd docker
+sudo usermod -aG docker $USER
+newgrp docker
+```
+
+## Как запустить лабораторную
+
+Открой терминал в папке проекта и выполни:
+
+```bash
+docker compose up -d
+```
+
+Важно: официальный образ `postgres` запускает все `*.sql` и `*.sh` из `/docker-entrypoint-initdb.d` **только при первом старте на пустом volume**. Поэтому если хочешь перезалить данные с нуля, сначала делай: citeturn350985search0turn350985search7
+
+```bash
+docker compose down -v
+docker compose up -d
+```
+
+## Как проверить, что всё загрузилось
+
+```bash
+docker exec -it bigdata_snowflake_pg psql -U postgres -d bigdata_lab
+```
+
+Внутри `psql`:
+
+```sql
+SELECT COUNT(*) FROM staging.mock_data;
+SELECT COUNT(*) FROM dwh.fact_sales;
+\i /workspace/sql/checks.sql
+```
+
+## Что важно для защиты
+
+1. Исходная модель — одна широкая денормализованная таблица `staging.mock_data`.
+2. Поля `sale_customer_id`, `sale_seller_id`, `sale_product_id` нельзя считать глобальными ключами, потому что они повторяются между файлами.
+3. Поэтому в аналитической модели используются surrogate keys (`BIGSERIAL`) и загрузка по бизнес-полям.
+4. Факт: `dwh.fact_sales`.
+5. Измерения: покупатель, питомец покупателя, продавец, магазин, поставщик, товар, дата и вспомогательные нормализованные справочники (страна, город, категория, бренд, материал, цвет, размер, тип питомца и т.д.).
+6. Это уже именно snowflake, а не просто звезда, потому что часть измерений вынесена в отдельные подизмерения.
+
+## Если Docker совсем не хочется
+
+Можно сделать то же самое через локальный PostgreSQL + DBeaver:
+1. установить PostgreSQL,
+2. создать БД `bigdata_lab`,
+3. выполнить `00_init.sql`, `02_ddl.sql`, `03_dml.sql`,
+4. а CSV загрузить в `staging.mock_data` через Import Data в DBeaver.
+
+Но для сдачи у тебя по ТЗ лучше иметь именно `docker-compose.yml`.
