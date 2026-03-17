@@ -79,7 +79,7 @@
 
 ## Команды для запуска и проверки проекта
 
-### Клонирование репозитория
+
 ```bash
 git clone https://github.com/ElizabetDA/BDSnowflake
 cd BDSnowflake
