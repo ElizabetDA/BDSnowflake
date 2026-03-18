@@ -15,29 +15,21 @@ docker compose up -d
 
 3. Подключиться к PostgreSQL через DBeaver или psql.
 
-### Параметры подключения
+
+## Параметры подключения
+
 - Host: `localhost`
-- Port: `5432`
+- Port: `5433`
 - Database: `bigdata_lab`
 - User: `postgres`
 - Password: `postgres`
-
-### Подключение через psql
-```bash
-docker exec -it bigdata_snowflake_pg psql -U postgres -d bigdata_lab
-```
-
-После входа можно отключить pager:
-```sql
-\pset pager off
-```
-
 
 ## Структура проекта
 
 ```text
 .
 ├── docker-compose.yml
+├── README.md
 ├── data/
 │   ├── MOCK_DATA.csv
 │   ├── MOCK_DATA (1).csv
@@ -54,6 +46,24 @@ docker exec -it bigdata_snowflake_pg psql -U postgres -d bigdata_lab
 │   ├── 01_load_raw.sh
 │   ├── 02_ddl.sql
 │   └── 03_dml.sql
-└── sql/
-    └── checks.sql
+├── sql/
+│   └── checks.sql
+└── er_diagram.png
 ```
+
+## Содержание проекта
+
+- `staging.mock_data` — исходная широкая таблица после загрузки CSV;
+- `dwh.fact_sales` — таблица фактов продаж;
+- `dwh.dim_*` — таблицы измерений аналитической модели;
+- `diagram.png` — ER-диаграмма snowflake-модели.
+
+
+## Результат
+
+В проекте реализованы:
+- загрузка 10 CSV-файлов в PostgreSQL;
+- staging-слой `staging.mock_data`;
+- DDL-скрипты создания snowflake-модели;
+- DML-скрипты заполнения таблиц фактов и измерений;
+- запуск проекта через Docker Compose.
