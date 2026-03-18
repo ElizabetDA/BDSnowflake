@@ -48,7 +48,7 @@ docker compose up -d
 │   └── 03_dml.sql
 ├── sql/
 │   └── checks.sql
-└── er_diagram.png
+└── diagram.png
 ```
 
 ## Содержание проекта
